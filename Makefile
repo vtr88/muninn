@@ -24,8 +24,12 @@ ready: $(OBJS)
 	$(CC) $(OBJS) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o $(BIN_DIR)/$(OBJ_NAME)
 	@rm -f $(OBJ_NAME)
 
+clean:
+	@rm -rf $(BIN_DIR)
+	@rm -f $(OBJ_NAME)
+
 # Target to create the binary in the current directory
 all: $(OBJS)
 	$(CC) $(OBJS) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o $(OBJ_NAME)
 
-.PHONY: all ready
+.PHONY: all ready clean
