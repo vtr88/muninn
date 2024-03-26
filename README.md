@@ -38,16 +38,6 @@ Before running Muninn, you need to generate SSL/TLS certificates for the server.
    openssl req -x509 -newkey rsa:2048 -keyout ca-key.pem -out ca-cert.pem -days 365
    ```
 
-### Running Muninn
-
-To run Muninn, execute the following command:
-
-```
-./muninn
-```
-
-By default, Muninn listens on port 13337 for incoming connections.
-
 ### Importing CA Certificate into Firefox
 
 To use Muninn as an HTTPS proxy with client authentication, you'll need to import the CA certificate (`ca-cert.pem`) into Firefox. Here's how:
@@ -71,6 +61,16 @@ To use Muninn as an HTTPS proxy with client authentication, you'll need to impor
 9. You may be prompted to enter your system password to confirm the import.
 
 10. Once imported, Firefox will trust certificates signed by the CA certificate, allowing Muninn to act as an HTTPS proxy with client authentication.
+
+### Running Muninn
+
+To run Muninn, execute the following command:
+
+```
+./muninn
+```
+
+By default, Muninn listens on port 13337 for incoming connections.
 
 ## License
 
