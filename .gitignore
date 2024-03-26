@@ -1,0 +1,11 @@
+# Ignore the bin folder
+bin/
+
+# Ignore all binary files
+muninn
+
+# Ignore all .pem files
+*.pem
+
+# Ignore ctags tags file
+tags
