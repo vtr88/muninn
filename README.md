@@ -2,14 +2,6 @@
 
 Muninn is a simple HTTPS proxy server implemented in C using OpenSSL. It allows you to intercept and modify HTTPS traffic for testing and debugging purposes. This README provides instructions on how to set up and use Muninn, including generating the required SSL/TLS certificates.
 
-## Prerequisites
-
-Before using Muninn, make sure you have the following prerequisites installed:
-
-- GCC compiler
-- OpenSSL library
-- Mozilla Firefox (for importing CA certificate)
-
 ## Usage
 
 ### Building Muninn
