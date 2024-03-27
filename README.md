@@ -37,6 +37,7 @@ Before running Muninn, you need to generate SSL/TLS certificates for the server.
    ```
    openssl req -x509 -newkey rsa:2048 -keyout ca-key.pem -out ca-cert.pem -days 365
    ```
+Whatever method you use to generate the certificate and key files, the Common Name value used for the server and client certificates/keys must each differ from the Common Name value used for the CA certificate. Otherwise, the certificate and key files will not work for servers compiled using OpenSSL.
 
 ### Importing CA Certificate into Firefox
 
