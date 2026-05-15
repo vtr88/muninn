@@ -75,8 +75,6 @@ curl --cacert muninn-ca-cert.pem \
 
 The code is intentionally closer to OpenBSD-style C than to a framework
 project: explicit sockets, explicit TLS setup, explicit threads, and plain
-structs. The source is heavily commented in Brazilian Portuguese so the proxy
-flow can be studied directly.
-
+structs.
 This is a local debugging tool. Only import the Muninn CA in a browser profile
 you use for testing.
