@@ -1,78 +1,82 @@
 # Muninn Proxy
 
-Muninn is a simple HTTPS proxy server implemented in C using OpenSSL. It allows you to intercept and modify HTTPS traffic for testing and debugging purposes. This README provides instructions on how to set up and use Muninn, including generating the required SSL/TLS certificates.
+Muninn is a small terminal HTTP/HTTPS proxy written in C. It listens on
+`127.0.0.1:13337`, forwards traffic without pausing it, and shows a simple TUI
+with separate logs for client-to-server and server-to-client bytes.
 
-## Usage
+It currently supports:
 
-### Building Muninn
+- Plain HTTP proxy forwarding.
+- HTTPS `CONNECT` interception using a generated local CA.
+- Dynamic per-host certificates for HTTPS MITM.
+- A thread-per-connection network model.
+- An ncurses TUI with two tabs:
+  - `C->S`: client to server.
+  - `S->C`: server to client.
 
-To build Muninn, run the following command in your terminal:
+Muninn is currently an observe-only proxy. It prints traffic, but it does not
+pause, edit, replay, or drop requests.
 
-```
+## Build
+
+Install a C compiler, ncurses development headers, OpenSSL development headers,
+and pthread support, then run:
+
+```sh
 make
 ```
 
-This will compile the Muninn source code and generate the `muninn` executable.
+This creates `./muninn`.
 
-### Generating SSL/TLS Certificates
+## Run
 
-Before running Muninn, you need to generate SSL/TLS certificates for the server. Follow these steps:
-
-1. Generate a private key file:
-   ```
-   openssl genrsa -out key.pem 2048
-   ```
-
-2. Generate a certificate signing request (CSR):
-   ```
-   openssl req -new -key key.pem -out csr.pem
-   ```
-
-3. Generate a self-signed certificate using the CSR and private key:
-   ```
-   openssl x509 -req -days 365 -in csr.pem -signkey key.pem -out cert.pem
-   ```
-
-4. Generate a CA certificate (optional if you want to enable client authentication):
-   ```
-   openssl req -x509 -newkey rsa:2048 -keyout ca-key.pem -out ca-cert.pem -days 365
-   ```
-Whatever method you use to generate the certificate and key files, the Common Name value used for the server and client certificates/keys must each differ from the Common Name value used for the CA certificate. Otherwise, the certificate and key files will not work for servers compiled using OpenSSL.
-
-### Importing CA Certificate into Firefox
-
-To use Muninn as an HTTPS proxy with client authentication, you'll need to import the CA certificate (`ca-cert.pem`) into Firefox. Here's how:
-
-1. Open Firefox and click on the menu button (three horizontal lines) in the top-right corner.
-
-2. Select **Preferences** from the dropdown menu.
-
-3. In the Preferences window, click on **Privacy & Security** in the left sidebar.
-
-4. Scroll down to the **Certificates** section and click on the **View Certificates** button.
-
-5. In the Certificate Manager window, switch to the **Authorities** tab.
-
-6. Click on the **Import** button.
-
-7. Locate the `ca-cert.pem` file on your filesystem and click **Open**.
-
-8. Check the box next to **Trust this CA to identify websites** and click **OK**.
-
-9. You may be prompted to enter your system password to confirm the import.
-
-10. Once imported, Firefox will trust certificates signed by the CA certificate, allowing Muninn to act as an HTTPS proxy with client authentication.
-
-### Running Muninn
-
-To run Muninn, execute the following command:
-
-```
+```sh
 ./muninn
 ```
 
-By default, Muninn listens on port 13337 for incoming connections.
+On first run, Muninn creates:
 
-## License
+```text
+muninn-ca-key.pem
+muninn-ca-cert.pem
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Import `muninn-ca-cert.pem` into your browser as a trusted certificate
+authority. Do not share `muninn-ca-key.pem`; it is the private key used to sign
+the fake per-site certificates.
+
+Configure your browser or command-line client to use:
+
+```text
+HTTP proxy: 127.0.0.1
+Port:       13337
+```
+
+For example:
+
+```sh
+curl -x http://127.0.0.1:13337 http://example.com/
+```
+
+For HTTPS testing with curl:
+
+```sh
+curl --cacert muninn-ca-cert.pem \
+  -x http://127.0.0.1:13337 \
+  https://example.com/
+```
+
+## TUI Controls
+
+- `Tab`, left arrow, or right arrow: switch between `C->S` and `S->C`.
+- `q`: quit.
+
+## Notes
+
+The code is intentionally closer to OpenBSD-style C than to a framework
+project: explicit sockets, explicit TLS setup, explicit threads, and plain
+structs. The source is heavily commented in Brazilian Portuguese so the proxy
+flow can be studied directly.
+
+This is a local debugging tool. Only import the Muninn CA in a browser profile
+you use for testing.
