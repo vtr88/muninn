@@ -14,12 +14,7 @@
                               / /
                          ____/ /____
                         /___________\
-                         Muninn observa.
 ```
-
-Na mitologia nordica, Muninn e um dos dois corvos de Odin. Ao lado de Huginn,
-ele percorre o mundo e retorna para contar o que viu. Huginn costuma ser
-associado ao pensamento; Muninn, a memoria.
 
 Muninn e um inspetor HTTP/HTTPS local e somente leitura, escrito em C99. Ele
 fica entre o navegador e os servidores, encaminha o trafego sem pausa ou
