@@ -231,6 +231,51 @@ test_connect_and_205_have_no_body(void)
 	http_observer_free(observer);
 }
 
+/*
+ * Este teste cruza a fronteira parser -> historico. Fragmentos pequenos
+ * garantem que a captura nao depende de receber linhas ou bodies inteiros.
+ */
+static void
+test_structured_capture(void)
+{
+	struct capture_transaction_summary *summaries;
+	struct capture_transaction_view view;
+	struct http_observer *observer;
+	size_t count;
+
+	CHECK(capture_init(NULL) == 0);
+	CHECK(capture_connection_open(30, "127.0.0.1", "61000") == 0);
+	observer = http_observer_new(30);
+	feed_fragments(observer, SIDE_C2S,
+	    "POST /chunk HTTP/1.1\r\nHost: local\r\n"
+	    "Transfer-Encoding: chunked\r\n\r\n4\r\nWiki\r\n0\r\n\r\n", 1);
+	feed_fragments(observer, SIDE_S2C,
+	    "HTTP/1.1 100 Continue\r\n\r\n"
+	    "HTTP/1.1 201 Created\r\nContent-Type: text/plain\r\n"
+	    "Content-Length: 5\r\n\r\nhello", 2);
+
+	summaries = NULL;
+	count = 0;
+	CHECK(capture_list_transactions(&summaries, &count) == 0);
+	CHECK(count == 1);
+	if (count == 1) {
+		CHECK(summaries[0].state == CAPTURE_COMPLETE);
+		CHECK(summaries[0].status == 201);
+		CHECK(summaries[0].request_body_total == 4);
+		CHECK(summaries[0].response_body_total == 5);
+		CHECK(capture_get_transaction(summaries[0].id, &view) == 0);
+		CHECK(memcmp(view.request.body, "Wiki", 4) == 0);
+		CHECK(memcmp(view.response.body, "hello", 5) == 0);
+		CHECK(strcmp(view.response.start_line,
+		    "HTTP/1.1 201 Created") == 0);
+		capture_free_transaction(&view);
+	}
+	free(summaries);
+	http_observer_free(observer);
+	capture_connection_close(30);
+	capture_cleanup();
+}
+
 int
 main(void)
 {
@@ -242,6 +287,7 @@ main(void)
 	test_content_length_lists_and_conflicts();
 	test_invalid_request_transfer_encoding();
 	test_connect_and_205_have_no_body();
+	test_structured_capture();
 
 	if (failures != 0) {
 		fprintf(stderr, "%d teste(s) falharam\n", failures);

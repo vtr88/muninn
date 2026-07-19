@@ -33,6 +33,7 @@ enum parser_state {
 struct queued_request {
 	char method[32];
 	char target[1024];
+	uint64_t transaction_id;
 };
 
 /*
@@ -55,6 +56,7 @@ struct http_message {
 	uint64_t content_length;
 	uint64_t body_received;
 	uint64_t chunk_left;
+	uint64_t transaction_id;
 	size_t header_bytes;
 	size_t trailer_bytes;
 	size_t chunk_crlf_pos;
@@ -105,6 +107,7 @@ static void
 parser_error(struct http_parser *parser, const char *reason)
 {
 	struct http_observer *observer;
+	size_t i, index;
 
 	observer = parser->observer;
 	if (observer->disabled)
@@ -113,6 +116,17 @@ parser_error(struct http_parser *parser, const char *reason)
 	observer->stats.parse_errors++;
 	observer->request.state = HTTP_ERROR;
 	observer->response.state = HTTP_ERROR;
+	/*
+	 * O parser inteiro e desativado depois de uma ambiguidade. Marcamos tanto
+	 * as mensagens em curso quanto as requests enfileiradas, pois nenhuma delas
+	 * recebera uma resposta interpretavel depois daqui.
+	 */
+	capture_transaction_error(observer->request.message.transaction_id);
+	capture_transaction_error(observer->response.message.transaction_id);
+	for (i = 0; i < observer->queue_count; i++) {
+		index = (observer->queue_start + i) % HTTP_QUEUE_MAX;
+		capture_transaction_error(observer->queue[index].transaction_id);
+	}
 	log_add(parser_side(parser), "#%d parser HTTP: %s", observer->id,
 	    reason);
 }
@@ -224,6 +238,7 @@ queue_push(struct http_observer *observer, const struct http_message *message)
 	    message->method);
 	snprintf(request->target, sizeof(request->target), "%s",
 	    message->target);
+	request->transaction_id = message->transaction_id;
 	observer->queue_count++;
 	return 0;
 }
@@ -266,6 +281,7 @@ message_complete(struct http_parser *parser)
 	observer = parser->observer;
 	message = &parser->message;
 	if (parser->role == PARSER_REQUEST) {
+		capture_request_complete(message->transaction_id);
 		observer->stats.requests++;
 		observer->stats.request_body_bytes += message->body_received;
 		log_add(SIDE_C2S, "#%d request %s %s (%llu bytes de body)",
@@ -277,6 +293,8 @@ message_complete(struct http_parser *parser)
 		    (method_is(request, "CONNECT") && message->status >= 200 &&
 		    message->status < 300);
 		observer->stats.responses++;
+		capture_response_complete(request == NULL ? 0 :
+		    request->transaction_id, response_is_informational(message));
 		observer->stats.response_body_bytes += message->body_received;
 		if (request != NULL)
 			log_add(SIDE_S2C,
@@ -505,13 +523,34 @@ process_line(struct http_parser *parser)
 			parser_error(parser, "start-line invalida");
 			break;
 		}
+		if (parser->role == PARSER_REQUEST) {
+			parser->message.transaction_id = capture_request_begin(
+			    parser->observer->id, parser->message.method,
+			    parser->message.target, parser->message.version);
+		} else {
+			struct queued_request *request;
+
+			request = queue_peek(parser->observer);
+			parser->message.transaction_id = request == NULL ? 0 :
+			    request->transaction_id;
+			capture_response_begin(parser->message.transaction_id,
+			    parser->message.version, parser->message.status,
+			    parser->message.reason);
+		}
 		parser->state = HTTP_HEADERS;
 		break;
 	case HTTP_HEADERS:
-		if (parser->line_len == 0)
+		if (parser->line_len == 0) {
+			capture_headers_complete(parser->message.transaction_id,
+			    parser->role == PARSER_RESPONSE);
 			headers_complete(parser);
-		else if (parse_header_line(parser, line) == -1)
+		} else {
+			/* A captura ocorre antes de parse_header_line inserir um NUL. */
+			capture_header(parser->message.transaction_id,
+			    parser->role == PARSER_RESPONSE, line);
+			if (parse_header_line(parser, line) == -1)
 			parser_error(parser, "header invalido ou ambiguo");
+		}
 		break;
 	case HTTP_CHUNK_SIZE:
 		if (parse_chunk_size(parser, line) == -1)
@@ -589,6 +628,8 @@ parser_feed(struct http_parser *parser, const unsigned char *buf, size_t len)
 			take = len - pos;
 			if ((uint64_t)take > remaining)
 				take = (size_t)remaining;
+			capture_body(message->transaction_id,
+			    parser->role == PARSER_RESPONSE, buf + pos, take);
 			message->body_received += take;
 			pos += take;
 			if (message->body_received == message->content_length)
@@ -602,6 +643,8 @@ parser_feed(struct http_parser *parser, const unsigned char *buf, size_t len)
 				parser_error(parser, "body excede contador de 64 bits");
 				break;
 			}
+			capture_body(message->transaction_id,
+			    parser->role == PARSER_RESPONSE, buf + pos, take);
 			message->body_received += take;
 			message->chunk_left -= take;
 			pos += take;
@@ -624,6 +667,8 @@ parser_feed(struct http_parser *parser, const unsigned char *buf, size_t len)
 				parser_error(parser, "body excede contador de 64 bits");
 				break;
 			}
+			capture_body(message->transaction_id,
+			    parser->role == PARSER_RESPONSE, buf + pos, len - pos);
 			message->body_received += len - pos;
 			pos = len;
 			break;

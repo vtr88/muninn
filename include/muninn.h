@@ -8,6 +8,12 @@
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
 
+#include "capture.h"
+
+#ifndef MUNINN_VERSION
+#define MUNINN_VERSION "0.1.0"
+#endif
+
 /*
  * Este cabecalho descreve somente os contratos compartilhados pelos modulos.
  * Detalhes internos continuam privados em cada arquivo .c.
@@ -42,6 +48,7 @@ enum app_mode {
 	APP_CA_CREATE,
 	APP_CA_SHOW,
 	APP_CA_FINGERPRINT,
+	APP_VERSION,
 	APP_HELP
 };
 
@@ -82,6 +89,7 @@ extern volatile sig_atomic_t running;
 int config_parse(int, char **, enum app_mode *);
 int config_insecure_upstream(void);
 int config_host_passthrough(const char *);
+const struct capture_limits *config_capture_limits(void);
 void config_usage(void);
 
 /* util.c */
@@ -96,6 +104,7 @@ int wait_fd_until(int, short, long long);
 void log_add(enum side, const char *, ...);
 void log_bytes(enum side, int, const unsigned char *, size_t);
 void tui_init(void);
+void tui_cleanup(void);
 void tui_input(void);
 void tui_draw(void);
 

@@ -1,0 +1,116 @@
+.Dd July 19, 2026
+.Dt MUNINN 1
+.Os
+.Sh NAME
+.Nm muninn
+.Nd inspect HTTP and HTTPS traffic in a terminal
+.Sh SYNOPSIS
+.Nm
+.Op Fl -insecure-upstream
+.Op Fl -passthrough Ar host
+.Op Fl -max-memory Ar size
+.Op Fl -max-body Ar size
+.Op Fl -max-headers Ar size
+.Op Fl -max-transactions Ar count
+.Op Fl -max-connections Ar count
+.Nm
+.Cm ca
+.Brq Cm create | show | fingerprint
+.Nm
+.Op Fl hV
+.Sh DESCRIPTION
+.Nm
+is a local, read-only HTTP/HTTPS forward proxy with an ncurses interface.
+It listens on 127.0.0.1:13337, forwards traffic without pausing or modifying
+it, and keeps a bounded transaction history in memory.
+.Pp
+HTTPS inspection uses a local certificate authority. The public CA
+certificate must be trusted by the browser. The private key must remain local.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl -insecure-upstream
+Disable verification of certificates presented by upstream servers.
+Use only for deliberately insecure development servers.
+.It Fl -passthrough Ar host
+Relay TLS for
+.Ar host
+without interception. A pattern such as
+.Li *.example.com
+matches subdomains but not the root domain. May be repeated.
+.It Fl -max-memory Ar size
+Set the total dynamic memory budget for captured HTTP data. Default: 8M.
+.It Fl -max-body Ar size
+Set the stored byte limit for each request or response body. Default: 64K.
+.It Fl -max-headers Ar size
+Set the stored byte limit for each header block. Default: 64K.
+.It Fl -max-transactions Ar count
+Set the maximum number of transactions. Default: 2048.
+.It Fl -max-connections Ar count
+Set the maximum number of connection records. Default: 512.
+.It Fl h , Fl -help
+Display usage information.
+.It Fl V , Fl -version
+Display the program version.
+.El
+.Pp
+Sizes accept bytes or one binary suffix:
+.Cm K , M ,
+or
+.Cm G .
+.Sh INTERFACE
+.Bl -tag -width PageDown
+.It Ic Up , Down , j , k
+Select a transaction.
+.It Ic Left , Right , Tab
+Select Request or Response.
+.It Ic PageUp , PageDown , u , d
+Scroll message details.
+.It Ic g , G
+Select the first or last visible transaction.
+.It Ic /
+Edit the search query. Press Enter or Escape to leave editing.
+.It Ic c
+Clear the active search query.
+.It Ic C
+Remove completed, interrupted, and failed transactions from memory.
+.It Ic e
+Switch between transaction history and operational events.
+.It Ic q
+Exit.
+.El
+.Sh SEARCH
+Plain terms search method, destination, status, start-lines, headers, content
+type, and stored raw bodies. Multiple terms use AND semantics.
+.Pp
+Structured filters are also available:
+.Bd -literal -offset indent
+method:POST
+host:example.com
+status:404
+state:erro
+.Ed
+.Sh HTTP SUPPORT
+.Nm
+parses HTTP/1.x, including Content-Length, chunked transfer encoding,
+informational responses, keep-alive, and close-delimited responses.
+TLS ALPN is restricted to HTTP/1.1. HTTP/2 is not decoded. Protocol upgrades,
+WebSockets, certificate pinning, and passthrough traffic remain opaque.
+.Pp
+gzip, deflate, and Brotli bodies are decoded only for display. Raw captured
+bytes remain unchanged. Decoded output is limited to 256 KiB.
+.Sh FILES
+.Bl -tag -width muninn-ca-cert.pem
+.It Pa muninn-ca-cert.pem
+Public certificate imported into the browser.
+.It Pa muninn-ca-key.pem
+Private CA key. Keep local with mode 0600 and never import or share it.
+.El
+.Sh SECURITY
+Requests may contain credentials, cookies, and personal data. History remains
+in process memory until cleared or the program exits. Do not run
+.Nm
+as root. Remove browser trust in the local CA after testing.
+.Sh EXIT STATUS
+.Ex -std
+.Sh AUTHORS
+.An Vitor

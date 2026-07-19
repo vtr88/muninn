@@ -1,14 +1,14 @@
-# Ignore the bin folder
-bin/
+/muninn
+/bin/
+/build/
 
-# Ignore intermediate object files
-build/
-
-# Ignore all binary files
-muninn
-
-# Ignore all .pem files
+# Material criptografico e certificados sao sempre locais.
 *.pem
+*.der
+*.p12
 
-# Ignore ctags tags file
+# Artefatos de desenvolvimento.
 tags
+compile_commands.json
+core
+core.*

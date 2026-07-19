@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 
 #include <curses.h>
+#include <locale.h>
 #include <openssl/err.h>
 #include <pthread.h>
 #include <signal.h>
@@ -21,12 +22,18 @@ main(int argc, char **argv)
 	int lfd;
 	pthread_t accept_tid;
 
+	/* ncurses usa a locale para medir e desenhar texto UTF-8 corretamente. */
+	(void)setlocale(LC_ALL, "");
 	if (config_parse(argc, argv, &mode) == -1) {
 		config_usage();
 		return 1;
 	}
 	if (mode == APP_HELP) {
 		config_usage();
+		return 0;
+	}
+	if (mode == APP_VERSION) {
+		printf("muninn %s\n", MUNINN_VERSION);
 		return 0;
 	}
 
@@ -52,12 +59,25 @@ main(int argc, char **argv)
 		return status == 0 ? 0 : 1;
 	}
 
+	/*
+	 * O historico nasce antes das threads e so morre depois que todas elas
+	 * terminaram. Assim nenhuma captura concorre com inicializacao ou cleanup.
+	 */
+	if (capture_init(config_capture_limits()) == -1) {
+		fprintf(stderr, "nao consegui inicializar o historico em memoria\n");
+		tls_cleanup();
+		return 1;
+	}
+
 	lfd = listen_socket();
 	tui_init();
 
 	if (load_or_create_ca() == -1) {
+		tui_cleanup();
 		endwin();
 		fprintf(stderr, "nao consegui carregar/criar a CA local\n");
+		capture_cleanup();
+		tls_cleanup();
 		return 1;
 	}
 
@@ -93,8 +113,10 @@ main(int argc, char **argv)
 	 * todas sairem dos loops de poll antes de destruir ncurses e a CA global.
 	 */
 	proxy_wait_connections();
+	tui_cleanup();
 	endwin();
 
+	capture_cleanup();
 	tls_cleanup();
 	EVP_cleanup();
 	return 0;
