@@ -17,55 +17,31 @@
                          Muninn observa.
 ```
 
-Na mitologia nordica, Muninn e um dos dois corvos de Odin. Ao lado de
-Huginn, ele percorre o mundo e retorna para contar o que viu. Huginn costuma
-ser associado ao pensamento; Muninn, a memoria.
-
-Este Muninn e um proxy HTTP/HTTPS escrito em C. Ele fica entre o navegador e
-os servidores, encaminha o trafego sem pausa ou modificacao e mostra na TUI as
-requisicoes e respostas observadas.
-
-## Usando com o Firefox
-
 ### 1. Instale as dependencias
-
 No Debian:
-
 ```sh
 sudo apt install build-essential libncurses-dev libssl-dev
 ```
-
 ### 2. Compile
-
 ```sh
 make
 ```
-
 O executavel sera criado como `./muninn`.
-
 ### 3. Crie ou valide a CA local
-
 ```sh
 ./muninn ca create
 ```
-
 Esse comando prepara:
-
 ```text
 muninn-ca-cert.pem  certificado publico para importar no navegador
 muninn-ca-key.pem   chave privada que deve permanecer somente nesta maquina
 ```
-
 Nunca importe, compartilhe ou envie `muninn-ca-key.pem`.
-
 Para conferir a identidade da CA:
-
 ```sh
 ./muninn ca fingerprint
 ```
-
 ### 4. Importe a CA no Firefox
-
 Use preferencialmente um perfil separado do Firefox para os testes.
 
 1. Abra **Configuracoes**.
@@ -80,17 +56,13 @@ Use preferencialmente um perfil separado do Firefox para os testes.
 Importe somente `muninn-ca-cert.pem`.
 
 ### 5. Inicie o Muninn
-
 ```sh
 ./muninn
 ```
-
 Ele deve mostrar que esta ouvindo em:
-
 ```text
 127.0.0.1:13337
 ```
-
 Mantenha esse terminal aberto.
 
 ### 6. Configure o proxy no Firefox
@@ -110,32 +82,24 @@ Nao adicione os sites que deseja observar na lista **Sem proxy para**.
 
 Abra um site HTTP ou HTTPS no Firefox. O Muninn encaminhara a conexao e
 mostrara o trafego nas abas:
-
 ```text
 C->S  navegador para servidor
 S->C  servidor para navegador
 ```
-
 Use `Tab` ou as setas esquerda/direita para trocar de aba. Pressione `q`
 para encerrar.
-
 Se um site usar certificate pinning e recusar o MITM, reinicie com passthrough:
-
 ```sh
 ./muninn --passthrough exemplo.com
 ```
-
 Nesse modo o site funciona, mas seu HTTP permanece cifrado e nao pode ser
 mostrado pelo Muninn.
-
 `--insecure-upstream` desativa a verificacao dos certificados dos servidores
 reais. Use essa opcao somente para servidores de desenvolvimento cujo
 certificado invalido seja esperado:
-
 ```sh
 ./muninn --insecure-upstream
 ```
-
 ### 8. Depois dos testes
 
 1. Pressione `q` para encerrar o Muninn.
