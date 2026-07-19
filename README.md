@@ -1,80 +1,149 @@
-# Muninn Proxy
+# Muninn
 
-Muninn is a small terminal HTTP/HTTPS proxy written in C. It listens on
-`127.0.0.1:13337`, forwards traffic without pausing it, and shows a simple TUI
-with separate logs for client-to-server and server-to-client bytes.
+```text
+                              ___
+                          _.-'   '-._
+                       .-'           '.
+                     .'      __        \
+                    /      .'  '.       |
+                   ;      /  o   \      |
+                   |      \      /  _.-'-----.__
+                    \      '----'.-'            _ '>
+                     '._        /      __..---''
+                        '--.___/__.---'
+                              / /
+                         ____/ /____
+                        /___________\
+                         Muninn observa.
+```
 
-It currently supports:
+Na mitologia nordica, Muninn e um dos dois corvos de Odin. Ao lado de
+Huginn, ele percorre o mundo e retorna para contar o que viu. Huginn costuma
+ser associado ao pensamento; Muninn, a memoria.
 
-- Plain HTTP proxy forwarding.
-- HTTPS `CONNECT` interception using a generated local CA.
-- Dynamic per-host certificates for HTTPS MITM.
-- A thread-per-connection network model.
-- An ncurses TUI with two tabs:
-  - `C->S`: client to server.
-  - `S->C`: server to client.
+Este Muninn e um proxy HTTP/HTTPS escrito em C. Ele fica entre o navegador e
+os servidores, encaminha o trafego sem pausa ou modificacao e mostra na TUI as
+requisicoes e respostas observadas.
 
-Muninn is currently an observe-only proxy. It prints traffic, but it does not
-pause, edit, replay, or drop requests.
+## Usando com o Firefox
 
-## Build
+### 1. Instale as dependencias
 
-Install a C compiler, ncurses development headers, OpenSSL development headers,
-and pthread support, then run:
+No Debian:
+
+```sh
+sudo apt install build-essential libncurses-dev libssl-dev
+```
+
+### 2. Compile
 
 ```sh
 make
 ```
 
-This creates `./muninn`.
+O executavel sera criado como `./muninn`.
 
-## Run
+### 3. Crie ou valide a CA local
+
+```sh
+./muninn ca create
+```
+
+Esse comando prepara:
+
+```text
+muninn-ca-cert.pem  certificado publico para importar no navegador
+muninn-ca-key.pem   chave privada que deve permanecer somente nesta maquina
+```
+
+Nunca importe, compartilhe ou envie `muninn-ca-key.pem`.
+
+Para conferir a identidade da CA:
+
+```sh
+./muninn ca fingerprint
+```
+
+### 4. Importe a CA no Firefox
+
+Use preferencialmente um perfil separado do Firefox para os testes.
+
+1. Abra **Configuracoes**.
+2. Entre em **Privacidade e Seguranca**.
+3. Procure a secao **Certificados**.
+4. Clique em **Ver certificados**.
+5. Abra a aba **Autoridades**.
+6. Clique em **Importar**.
+7. Selecione `muninn-ca-cert.pem`.
+8. Autorize essa CA a identificar sites.
+
+Importe somente `muninn-ca-cert.pem`.
+
+### 5. Inicie o Muninn
 
 ```sh
 ./muninn
 ```
 
-On first run, Muninn creates:
+Ele deve mostrar que esta ouvindo em:
 
 ```text
-muninn-ca-key.pem
-muninn-ca-cert.pem
+127.0.0.1:13337
 ```
 
-Import `muninn-ca-cert.pem` into your browser as a trusted certificate
-authority. Do not share `muninn-ca-key.pem`; it is the private key used to sign
-the fake per-site certificates.
+Mantenha esse terminal aberto.
 
-Configure your browser or command-line client to use:
+### 6. Configure o proxy no Firefox
+
+1. Abra **Configuracoes**.
+2. Na secao **Geral**, procure **Configuracoes de rede**.
+3. Clique em **Configurar**.
+4. Selecione **Configuracao manual de proxy**.
+5. Em **Proxy HTTP**, informe `127.0.0.1`.
+6. Em **Porta**, informe `13337`.
+7. Marque a opcao para usar esse proxy tambem em HTTPS.
+8. Confirme as alteracoes.
+
+Nao adicione os sites que deseja observar na lista **Sem proxy para**.
+
+### 7. Navegue
+
+Abra um site HTTP ou HTTPS no Firefox. O Muninn encaminhara a conexao e
+mostrara o trafego nas abas:
 
 ```text
-HTTP proxy: 127.0.0.1
-Port:       13337
+C->S  navegador para servidor
+S->C  servidor para navegador
 ```
 
-For example:
+Use `Tab` ou as setas esquerda/direita para trocar de aba. Pressione `q`
+para encerrar.
+
+Se um site usar certificate pinning e recusar o MITM, reinicie com passthrough:
 
 ```sh
-curl -x http://127.0.0.1:13337 http://example.com/
+./muninn --passthrough exemplo.com
 ```
 
-For HTTPS testing with curl:
+Nesse modo o site funciona, mas seu HTTP permanece cifrado e nao pode ser
+mostrado pelo Muninn.
+
+`--insecure-upstream` desativa a verificacao dos certificados dos servidores
+reais. Use essa opcao somente para servidores de desenvolvimento cujo
+certificado invalido seja esperado:
 
 ```sh
-curl --cacert muninn-ca-cert.pem \
-  -x http://127.0.0.1:13337 \
-  https://example.com/
+./muninn --insecure-upstream
 ```
 
-## TUI Controls
+### 8. Depois dos testes
 
-- `Tab`, left arrow, or right arrow: switch between `C->S` and `S->C`.
-- `q`: quit.
+1. Pressione `q` para encerrar o Muninn.
+2. Volte as configuracoes de rede do Firefox para **Sem proxy** ou para a
+   configuracao usada anteriormente.
+3. No gerenciador de certificados do Firefox, remova ou deixe de confiar em
+   **Muninn Local CA**.
 
-## Notes
-
-The code is intentionally closer to OpenBSD-style C than to a framework
-project: explicit sockets, explicit TLS setup, explicit threads, and plain
-structs.
-This is a local debugging tool. Only import the Muninn CA in a browser profile
-you use for testing.
+Sem o proxy ativo, o Firefox configurado para `127.0.0.1:13337` nao conseguira
+navegar. Remover a confianca da CA depois dos testes evita que ela continue
+valida para interceptacao futura.
